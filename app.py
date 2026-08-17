@@ -26,6 +26,7 @@ st.divider()
 
 @st.cache_resource(show_spinner=False)
 def load_ai_system():
+    
     model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
     index = faiss.read_index("vector.index")
     with open("meta.pkl", "rb") as f:
@@ -39,12 +40,10 @@ def get_audio_hash(audio_bytes):
     return hashlib.md5(audio_bytes).hexdigest()
 
 def sarvam_stt(audio_bytes):
-    # THE FIX: Removed '-translate' to get exact Hindi text
-    url = "https://api.sarvam.ai/speech-to-text"
+    url = "https://api.sarvam.ai/speech-to-text-translate"
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    # THE FIX: Added language_code so it listens accurately in both Hindi & English
-    data = {"language_code": "hi-IN", "model": "saaras:v1"} 
+    data = {"prompt": ""}
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
@@ -57,7 +56,7 @@ def retrieve_context(query):
     distances, indices = index.search(query_vector, k=3)
     
     valid_chunks = []
-
+    
     for i in indices[0]:
         idx = int(i)
         
@@ -92,7 +91,7 @@ def groq_llm(query, context):
         lang_rule = "You MUST write the final answer ENTIRELY in Hindi (Devanagari script). No English."
     else:
         lang_rule = "You MUST write the final answer ENTIRELY in English. No Hindi."
-        
+
     system_prompt = (
         "You are an expert summarizer. Read the provided context and the user's question.\n"
         "CRITICAL RULES:\n"
@@ -108,7 +107,7 @@ def groq_llm(query, context):
             {"role": "user", "content": f"Context: {context}\nQuestion: {query}"}
         ],
         "temperature": 0.1,
-        "max_tokens": 400
+        "max_tokens": 300
     }
     
     try:
@@ -172,7 +171,7 @@ with col1:
                 st.info(f"**🤖 AI Answer:**\n\n{answer}")
                 
                 if latency < 10:
-                    st.metric(label="⚡ System Latency", value=f"{latency} ms")
+                    st.metric(label="⚡ System Latency (Cache Hit)", value=f"{latency} ms")
                     st.toast('Ultra-Fast Latency Achieved!', icon='🚀')
                 
                 generate_and_play_audio(answer)
