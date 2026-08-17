@@ -40,10 +40,11 @@ def get_audio_hash(audio_bytes):
     return hashlib.md5(audio_bytes).hexdigest()
 
 def sarvam_stt(audio_bytes):
-    url = "https://api.sarvam.ai/speech-to-text-translate"
+    url = "https://api.sarvam.ai/speech-to-text"
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    data = {"prompt": ""}
+    
+    data = {"prompt": "", "language_code": "hi-IN"} 
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
@@ -87,16 +88,12 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
-    
-    if is_hindi:
-        lang_command = "You MUST translate and write the final answer ENTIRELY in pure Hindi (Devanagari script). No English words allowed."
-    else:
-        lang_command = "You MUST write the final answer ENTIRELY in English. No Hindi words allowed."
-        
     system_prompt = (
         "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-        f"CRITICAL RULE 1 (LANGUAGE): {lang_command}\n"
+        "CRITICAL RULE 1 (DYNAMIC LANGUAGE DETECTION): Analyze the language of the user's Question. "
+        "If the Question is in Hindi (written in Devanagari script) OR Hinglish (Hindi written in English alphabet, e.g., 'kya hai'), "
+        "you MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). "
+        "If the Question is purely in English, write the answer ENTIRELY in English.\n"
         "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 3 to 4 short sentences. DO NOT exceed this length.\n"
         "CRITICAL RULE 3 (COMPLETION): Always end with a complete sentence and a proper full stop. Never leave the output cut off."
     )
@@ -109,8 +106,8 @@ def groq_llm(query, context):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
         ],
-        "temperature": 0.1,
-        "max_tokens": 400
+        "temperature": 0.1,  
+        "max_tokens": 400    
     }
     
     try:
