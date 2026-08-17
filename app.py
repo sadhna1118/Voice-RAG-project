@@ -26,7 +26,6 @@ st.divider()
 
 @st.cache_resource(show_spinner=False)
 def load_ai_system():
-    
     model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
     index = faiss.read_index("vector.index")
     with open("meta.pkl", "rb") as f:
@@ -40,10 +39,10 @@ def get_audio_hash(audio_bytes):
     return hashlib.md5(audio_bytes).hexdigest()
 
 def sarvam_stt(audio_bytes):
-    url = "https://api.sarvam.ai/speech-to-text-translate"
+    url = "https://api.sarvam.ai/speech-to-text"
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    data = {"prompt": ""}
+    data = {"language_code": "hi-IN"} 
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
@@ -63,7 +62,6 @@ def retrieve_context(query):
         if idx != -1:
             try:
                 chunk = meta[idx]
-                
                 if isinstance(chunk, dict):
                     valid_chunks.append(str(chunk.get("text", chunk)))
                 else:
@@ -90,30 +88,27 @@ def groq_llm(query, context):
     is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
     
     if is_hindi:
-        lang_command = (
-            "TRANSLATE THE CONTEXT IF NECESSARY. YOU MUST OUTPUT THE FINAL ANSWER "
-            "ABSOLUTELY 100% IN HINDI (DEVANAGARI SCRIPT). DO NOT OUTPUT A SINGLE ENGLISH WORD."
-        )
+        lang_command = "You MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). No English words allowed."
     else:
-        lang_command = "YOU MUST OUTPUT THE FINAL ANSWER ABSOLUTELY 100% IN ENGLISH. DO NOT OUTPUT HINDI."
+        lang_command = "You MUST write the final answer ENTIRELY in English. No Hindi words allowed."
         
     system_prompt = (
-        "You are an expert, bilingual assistant. Read the context carefully and answer the user's question.\n"
-        f"CRITICAL RULE 1 (LANGUAGE & TRANSLATION): {lang_command}\n"
-        "CRITICAL RULE 2 (LENGTH): Provide a highly concise summary in EXACTLY 3 to 4 complete sentences.\n"
-        "CRITICAL RULE 3 (COMPLETION): Always end your final sentence with a full stop (or Purna Viram '।'). Never stop mid-sentence."
+        "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
+        f"CRITICAL RULE 1 (LANGUAGE): {lang_command}\n"
+        "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 3 to 4 short lines. DO NOT exceed 100 words.\n"
+        "CRITICAL RULE 3 (COMPLETION): Always complete your sentence with a proper full stop. Never leave the output cut off midway."
     )
     
     user_content = f"Context: {context}\n\nQuestion: {query}"
     
     payload = {
-        "model": "llama3-70b-8192", 
+        "model": "openai/gpt-oss-20b",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
         ],
         "temperature": 0.1,
-        "max_tokens": 400
+        "max_tokens": 300
     }
     
     try:
@@ -126,6 +121,7 @@ def groq_llm(query, context):
             
     except Exception as e:
         return f"❌ System Crash: {str(e)}"
+
 def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
@@ -144,13 +140,13 @@ def process_query(audio_bytes):
     
     latency = round((time.time() - start_time) * 1000, 2)
     
-    if answer != "Error":
+    if answer != "Error" and not answer.startswith("❌"):
         audio_cache[file_hash] = {"transcript": transcript, "answer": answer}
     
     return transcript, answer, latency
 
 def generate_and_play_audio(text):
-    if text and "Error" not in text:
+    if text and "Error" not in text and not text.startswith("❌"):
         detected_lang = 'hi' if re.search(r'[\u0900-\u097F]', text) else 'en'
         tts = gTTS(text=text, lang=detected_lang)
         tts.save("temp_answer.mp3")
