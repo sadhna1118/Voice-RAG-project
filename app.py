@@ -107,7 +107,7 @@ def groq_llm(query, context):
             {"role": "user", "content": f"Context: {context}\nQuestion: {query}"}
         ],
         "temperature": 0.1,
-        "max_tokens": 300
+        "max_tokens": 400
     }
     
     try:
