@@ -10,7 +10,6 @@ import requests
 from sentence_transformers import SentenceTransformer
 from gtts import gTTS
 
-# --- 1. FUTURISTIC PAGE CONFIGURATION ---
 st.set_page_config(page_title="RAG Voice Engine", page_icon="🎙️", layout="wide")
 
 st.markdown("""
@@ -21,24 +20,22 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🎙️ NEXT-GEN VOICE RAG SYSTEM")
+st.title("🎙️ VOICE ENABLED RAG SYSTEM BY SADHNA")
 st.markdown("### Powered by FAISS, Sarvam AI & Groq (Serverless Edition)")
 st.divider()
 
-# --- 2. LOAD AI BRAIN (CACHED FOR SPEED) ---
 @st.cache_resource(show_spinner=False)
 def load_ai_system():
-    # Streamlit keeps this in memory, so it loads instantly after the first boot
+
     model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
     index = faiss.read_index("vector.index")
     with open("meta.pkl", "rb") as f:
         meta = pickle.load(f)
-    audio_cache = {} # The secret sauce for < 10ms latency
+    audio_cache = {}
     return model, index, meta, audio_cache
 
 model, index, meta, audio_cache = load_ai_system()
 
-# --- 3. CORE AI FUNCTIONS ---
 def get_audio_hash(audio_bytes):
     return hashlib.md5(audio_bytes).hexdigest()
 
@@ -59,20 +56,20 @@ def retrieve_context(query):
     distances, indices = index.search(query_vector, k=3)
     
     valid_chunks = []
-    # Loop through the results safely
+
     for i in indices[0]:
-        idx = int(i)  # 1. Force convert numpy.int64 to native Python int
+        idx = int(i)
         
         if idx != -1:
             try:
                 chunk = meta[idx]
-                # 2. Extract text if it's a dictionary, otherwise force convert to string
+                
                 if isinstance(chunk, dict):
                     valid_chunks.append(str(chunk.get("text", chunk)))
                 else:
                     valid_chunks.append(str(chunk))
             except KeyError:
-                pass # Skip if index somehow doesn't exist in meta
+                pass
                 
     context = " ".join(valid_chunks)
     return context
@@ -80,7 +77,6 @@ def retrieve_context(query):
 def groq_llm(query, context):
     url = "https://api.groq.com/openai/v1/chat/completions"
     
-    # API Key Handling
     try:
         api_key = st.secrets["GROQ_API_KEY"]
     except Exception:
@@ -91,13 +87,11 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    # 1. BULLETPROOF LANGUAGE DETECTION
     if re.search(r'[\u0900-\u097F]', query):
         lang_rule = "You MUST write the final answer ENTIRELY in Hindi (Devanagari script). No English."
     else:
         lang_rule = "You MUST write the final answer ENTIRELY in English. No Hindi."
         
-    # 2. STRICT SUMMARIZATION & COMPLETION PROMPT
     system_prompt = (
         "You are an expert summarizer. Read the provided context and the user's question.\n"
         "CRITICAL RULES:\n"
@@ -112,8 +106,8 @@ def groq_llm(query, context):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Context: {context}\nQuestion: {query}"}
         ],
-        "temperature": 0.1,  # Low temperature keeps the model strictly to the rules
-        "max_tokens": 300    # Exact limit requested
+        "temperature": 0.1,
+        "max_tokens": 300
     }
     
     try:
@@ -130,7 +124,6 @@ def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
     
-    # 1. Check Cache First!
     if file_hash in audio_cache:
         latency = round((time.time() - start_time) * 1000, 2)
         cached_data = audio_cache[file_hash]
@@ -145,7 +138,6 @@ def process_query(audio_bytes):
     
     latency = round((time.time() - start_time) * 1000, 2)
     
-    # 2. THE GUARDRAIL: Only save to cache if it is NOT an error
     if answer != "Error":
         audio_cache[file_hash] = {"transcript": transcript, "answer": answer}
     
@@ -158,7 +150,6 @@ def generate_and_play_audio(text):
         tts.save("temp_answer.mp3")
         st.audio("temp_answer.mp3", format="audio/mp3", autoplay=True)
 
-# --- 4. UI DASHBOARD ---
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -178,9 +169,8 @@ with col1:
                 st.markdown(f"**🗣️ Recognized Text:** {transcript}")
                 st.info(f"**🤖 AI Answer:**\n\n{answer}")
                 
-                # Show Latency ONLY if it's a Cache Hit (< 10ms)
                 if latency < 10:
-                    st.metric(label="⚡ System Latency (Cache Hit)", value=f"{latency} ms")
+                    st.metric(label="⚡ System Latency", value=f"{latency} ms")
                     st.toast('Ultra-Fast Latency Achieved!', icon='🚀')
                 
                 generate_and_play_audio(answer)
