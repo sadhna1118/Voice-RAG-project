@@ -107,7 +107,7 @@ def groq_llm(query, context):
     user_content = f"Context: {context}\n\nQuestion: {query}"
     
     payload = {
-        "model": "llama3-8b-8192", 
+        "model": "llama3-70b-8192", 
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
