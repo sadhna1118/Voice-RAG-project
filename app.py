@@ -79,7 +79,17 @@ def retrieve_context(query):
 
 def groq_llm(query, context):
     url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {os.getenv('GROQ_API_KEY', '')}"}
+    
+    # 1. SMART KEY DETECTION (Checks Streamlit Secrets first)
+    try:
+        api_key = st.secrets["GROQ_API_KEY"]
+    except Exception:
+        api_key = os.getenv('GROQ_API_KEY', '')
+        
+    if not api_key:
+        return "❌ ERROR: Groq API Key missing! Please check Streamlit Advanced Settings > Secrets."
+        
+    headers = {"Authorization": f"Bearer {api_key}"}
     
     if re.search(r'[\u0900-\u097F]', query):
         lang_instruction = "You MUST reply ENTIRELY in Hindi (using Devanagari script). Do not use English words."
@@ -102,11 +112,18 @@ def groq_llm(query, context):
     }
     
     try:
-        res = requests.post(url, headers=headers, json=payload, timeout=4.0)
-        return res.json()["choices"][0]["message"]["content"] if res.status_code == 200 else "Error"
-    except:
-        return "Error"
-
+        # 2. INCREASED TIMEOUT (Cloud servers take longer than local PC)
+        res = requests.post(url, headers=headers, json=payload, timeout=10.0)
+        
+        if res.status_code == 200:
+            return res.json()["choices"][0]["message"]["content"]
+        else:
+            # 3. PRINT EXACT API ERROR
+            return f"❌ API Error {res.status_code}: {res.text}"
+            
+    except Exception as e:
+        # 4. PRINT PYTHON CRASH ERROR
+        return f"❌ System Crash: {str(e)}"
 def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
