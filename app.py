@@ -57,7 +57,24 @@ def sarvam_stt(audio_bytes):
 def retrieve_context(query):
     query_vector = model.encode([query]).astype('float32')
     distances, indices = index.search(query_vector, k=3)
-    context = " ".join([meta[i] for i in indices[0] if i != -1])
+    
+    valid_chunks = []
+    # Loop through the results safely
+    for i in indices[0]:
+        idx = int(i)  # 1. Force convert numpy.int64 to native Python int
+        
+        if idx != -1:
+            try:
+                chunk = meta[idx]
+                # 2. Extract text if it's a dictionary, otherwise force convert to string
+                if isinstance(chunk, dict):
+                    valid_chunks.append(str(chunk.get("text", chunk)))
+                else:
+                    valid_chunks.append(str(chunk))
+            except KeyError:
+                pass # Skip if index somehow doesn't exist in meta
+                
+    context = " ".join(valid_chunks)
     return context
 
 def groq_llm(query, context):
