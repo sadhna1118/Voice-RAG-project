@@ -89,18 +89,19 @@ def groq_llm(query, context):
     
     is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
     
+    if is_hindi:
+        lang_command = "You MUST translate and write the final answer ENTIRELY in pure Hindi (Devanagari script). No English words allowed."
+    else:
+        lang_command = "You MUST write the final answer ENTIRELY in English. No Hindi words allowed."
+        
     system_prompt = (
         "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-        "RULE 1: Keep the answer strictly between 3 to 4 sentences.\n"
-        "RULE 2: Always end with a complete sentence and a proper punctuation mark. Never leave it cut off."
+        f"CRITICAL RULE 1 (LANGUAGE): {lang_command}\n"
+        "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 3 to 4 short sentences. DO NOT exceed this length.\n"
+        "CRITICAL RULE 3 (COMPLETION): Always end with a complete sentence and a proper full stop. Never leave the output cut off."
     )
     
-    if is_hindi:
-        lang_command = "CRITICAL: You MUST answer ENTIRELY in Hindi (Devanagari script). Do not use English."
-    else:
-        lang_command = "CRITICAL: You MUST answer ENTIRELY in English. Do not use Hindi."
-        
-    user_content = f"Context: {context}\n\nQuestion: {query}\n\n{lang_command}"
+    user_content = f"Context: {context}\n\nQuestion: {query}"
     
     payload = {
         "model": "openai/gpt-oss-20b",
@@ -109,7 +110,7 @@ def groq_llm(query, context):
             {"role": "user", "content": user_content}
         ],
         "temperature": 0.1,
-        "max_completion_tokens": 400
+        "max_tokens": 400
     }
     
     try:
