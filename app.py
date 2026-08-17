@@ -80,25 +80,30 @@ def retrieve_context(query):
 def groq_llm(query, context):
     url = "https://api.groq.com/openai/v1/chat/completions"
     
-    # 1. SMART KEY DETECTION (Checks Streamlit Secrets first)
+    # API Key Handling
     try:
         api_key = st.secrets["GROQ_API_KEY"]
     except Exception:
         api_key = os.getenv('GROQ_API_KEY', '')
         
     if not api_key:
-        return "❌ ERROR: Groq API Key missing! Please check Streamlit Advanced Settings > Secrets."
+        return "❌ ERROR: Groq API Key missing!"
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
+    # 1. BULLETPROOF LANGUAGE DETECTION
     if re.search(r'[\u0900-\u097F]', query):
-        lang_instruction = "You MUST reply ENTIRELY in Hindi (using Devanagari script). Do not use English words."
+        lang_rule = "You MUST write the final answer ENTIRELY in Hindi (Devanagari script). No English."
     else:
-        lang_instruction = "You MUST reply ENTIRELY in English. Do not use Hindi words."
+        lang_rule = "You MUST write the final answer ENTIRELY in English. No Hindi."
         
+    # 2. STRICT SUMMARIZATION & COMPLETION PROMPT
     system_prompt = (
-        "You are an advanced AI assistant. Answer the user's question in detail based ONLY on the context provided. "
-        f"CRITICAL RULE: {lang_instruction}"
+        "You are an expert summarizer. Read the provided context and the user's question.\n"
+        "CRITICAL RULES:\n"
+        f"1. LANGUAGE: {lang_rule}\n"
+        "2. LENGTH: You must summarize the answer in EXACTLY 4 to 5 short lines.\n"
+        "3. COMPLETION: You must complete your final sentence with a proper punctuation mark. Do not leave the answer cut off or incomplete."
     )
     
     payload = {
@@ -107,22 +112,19 @@ def groq_llm(query, context):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Context: {context}\nQuestion: {query}"}
         ],
-        "temperature": 0.1,
-        "max_tokens": 600
+        "temperature": 0.1,  # Low temperature keeps the model strictly to the rules
+        "max_tokens": 300    # Exact limit requested
     }
     
     try:
-        # 2. INCREASED TIMEOUT (Cloud servers take longer than local PC)
         res = requests.post(url, headers=headers, json=payload, timeout=10.0)
         
         if res.status_code == 200:
             return res.json()["choices"][0]["message"]["content"]
         else:
-            # 3. PRINT EXACT API ERROR
             return f"❌ API Error {res.status_code}: {res.text}"
             
     except Exception as e:
-        # 4. PRINT PYTHON CRASH ERROR
         return f"❌ System Crash: {str(e)}"
 def process_query(audio_bytes):
     start_time = time.time()
