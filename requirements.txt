@@ -1,11 +1,5 @@
-fastapi
-uvicorn
-faiss-cpu
-httpx
-numpy
-sentence-transformers
-python-dotenv
 streamlit
+faiss-cpu
+sentence-transformers
+httpx[http2]
 gTTS
-requests
-python-multipart
