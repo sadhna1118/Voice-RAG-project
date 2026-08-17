@@ -99,7 +99,7 @@ def generate_and_play_audio(text):
         st.audio("temp_answer.mp3", format="audio/mp3", autoplay=True)
 
 # --- 5. FRONTEND DASHBOARD ---
-st.title("🎙️ NEXT-GEN VOICE RAG SYSTEM")
+st.title("🎙️ VOICE ENABLED RAG SYSTEM")
 st.divider()
 
 col1, col2 = st.columns([1, 1])
