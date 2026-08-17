@@ -90,21 +90,24 @@ def groq_llm(query, context):
     is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
     
     if is_hindi:
-        lang_command = "You MUST translate and write the final answer ENTIRELY in pure Hindi (Devanagari script). No English words allowed."
+        lang_command = (
+            "TRANSLATE THE CONTEXT IF NECESSARY. YOU MUST OUTPUT THE FINAL ANSWER "
+            "ABSOLUTELY 100% IN HINDI (DEVANAGARI SCRIPT). DO NOT OUTPUT A SINGLE ENGLISH WORD."
+        )
     else:
-        lang_command = "You MUST write the final answer ENTIRELY in English. No Hindi words allowed."
+        lang_command = "YOU MUST OUTPUT THE FINAL ANSWER ABSOLUTELY 100% IN ENGLISH. DO NOT OUTPUT HINDI."
         
     system_prompt = (
-        "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-        f"CRITICAL RULE 1 (LANGUAGE): {lang_command}\n"
-        "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 3 to 4 short sentences. DO NOT exceed this length.\n"
-        "CRITICAL RULE 3 (COMPLETION): Always end with a complete sentence and a proper full stop. Never leave the output cut off."
+        "You are an expert, bilingual assistant. Read the context carefully and answer the user's question.\n"
+        f"CRITICAL RULE 1 (LANGUAGE & TRANSLATION): {lang_command}\n"
+        "CRITICAL RULE 2 (LENGTH): Provide a highly concise summary in EXACTLY 3 to 4 complete sentences.\n"
+        "CRITICAL RULE 3 (COMPLETION): Always end your final sentence with a full stop (or Purna Viram '।'). Never stop mid-sentence."
     )
     
     user_content = f"Context: {context}\n\nQuestion: {query}"
     
     payload = {
-        "model": "openai/gpt-oss-20b",
+        "model": "llama3-8b-8192", 
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
