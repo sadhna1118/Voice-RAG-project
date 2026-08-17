@@ -42,8 +42,7 @@ def sarvam_stt(audio_bytes):
     url = "https://api.sarvam.ai/speech-to-text"
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    
-    data = {"language_code": "unknown"} 
+    data = {"language_code": "hi-IN"} 
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
@@ -63,6 +62,7 @@ def retrieve_context(query):
         if idx != -1:
             try:
                 chunk = meta[idx]
+                
                 if isinstance(chunk, dict):
                     valid_chunks.append(str(chunk.get("text", chunk)))
                 else:
@@ -82,31 +82,22 @@ def groq_llm(query, context):
         api_key = os.getenv('GROQ_API_KEY', '')
         
     if not api_key:
-        return "❌ Oopsie! Groq API Key gayab hai! Please check Streamlit Advanced Settings > Secrets. 🙈"
+        return "❌ ERROR: Groq API Key missing!"
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
     is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
     
     if is_hindi:
-        lang_command = (
-            "You MUST reply ENTIRELY in Hindi using the Devanagari script. "
-            "Your tone should be like a happy, chill, and tech-savvy girl explaining things simply. "
-            "Think of words like 'yaar', 'cool', 'samjhe?'. DO NOT use English words."
-        )
+        lang_command = "You MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). No English words allowed."
     else:
-        lang_command = (
-            "You MUST reply ENTIRELY in English. "
-            "Your tone should be like a happy, chill, and tech-savvy girl explaining things simply. "
-            "Keep it fun and friendly! DO NOT use Hindi words."
-        )
+        lang_command = "You MUST write the final answer ENTIRELY in English. No Hindi words allowed."
         
     system_prompt = (
-        "You are an expert, super-chill tech summarizer. Read the context and the user's question.\n"
-        f"CRITICAL RULES:\n"
-        f"1. PERSONA & LANGUAGE: {lang_command}\n"
-        "2. LENGTH: You must summarize the answer in EXACTLY 3 to 4 short, punchy lines. Do NOT exceed this limit.\n"
-        "3. COMPLETION: You MUST finish your final sentence completely with a full stop. Never leave the text cut off or hanging midway."
+        "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
+        f"CRITICAL RULE 1 (LANGUAGE): {lang_command}\n"
+        "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 4 to 5 short lines. DO NOT exceed this length.\n"
+        "CRITICAL RULE 3 (COMPLETION): Always end with a complete sentence and a proper full stop. Never leave the output cut off or incomplete."
     )
     
     user_content = f"Context: {context}\n\nQuestion: {query}"
@@ -117,8 +108,8 @@ def groq_llm(query, context):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
         ],
-        "temperature": 0.2,
-        "max_tokens": 300
+        "temperature": 0.1,
+        "max_tokens": 400
     }
     
     try:
@@ -127,10 +118,10 @@ def groq_llm(query, context):
         if res.status_code == 200:
             return res.json()["choices"][0]["message"]["content"]
         else:
-            return f"❌ Oh no! API Error {res.status_code}: {res.text}"
+            return f"❌ API Error {res.status_code}: {res.text}"
             
     except Exception as e:
-        return f"❌ Yikes! System Crash: {str(e)}"
+        return f"❌ System Crash: {str(e)}"
 
 def process_query(audio_bytes):
     start_time = time.time()
