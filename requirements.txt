@@ -1,5 +1,6 @@
 streamlit
 faiss-cpu
+numpy
 sentence-transformers
-httpx[http2]
+requests
 gTTS
