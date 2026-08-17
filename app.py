@@ -42,7 +42,8 @@ def sarvam_stt(audio_bytes):
     url = "https://api.sarvam.ai/speech-to-text"
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    data = {"language_code": "hi-IN"} 
+    
+    data = {"language_code": "unknown"} 
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
@@ -81,19 +82,31 @@ def groq_llm(query, context):
         api_key = os.getenv('GROQ_API_KEY', '')
         
     if not api_key:
-        return "❌ Oopsie! Groq API Key gayab hai yaar! Please check Streamlit Advanced Settings > Secrets. 🙈"
+        return "❌ Oopsie! Groq API Key gayab hai! Please check Streamlit Advanced Settings > Secrets. 🙈"
         
     headers = {"Authorization": f"Bearer {api_key}"}
+    
+    is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
+    
+    if is_hindi:
+        lang_command = (
+            "You MUST reply ENTIRELY in Hindi using the Devanagari script. "
+            "Your tone should be like a happy, chill, and tech-savvy girl explaining things simply. "
+            "Think of words like 'yaar', 'cool', 'samjhe?'. DO NOT use English words."
+        )
+    else:
+        lang_command = (
+            "You MUST reply ENTIRELY in English. "
+            "Your tone should be like a happy, chill, and tech-savvy girl explaining things simply. "
+            "Keep it fun and friendly! DO NOT use Hindi words."
+        )
         
-    # THE ULTIMATE PERSONA & SMART LANGUAGE PROMPT
     system_prompt = (
-        "You are a super-chill, happy, and tech-savvy girl who explains things simply. "
-        "Read the context and answer the user's question.\n"
-        "CRITICAL RULES:\n"
-        "1. PERSONA: Always be happy, friendly, and energetic! Use words like 'yaar', 'cool', 'samjhe?' if answering in Hindi, or 'yay', 'super cool', 'got it?' if answering in English.\n"
-        "2. LANGUAGE: Detect the actual language spoken in the Question. Note: English questions might be written in Devanagari script (e.g., 'व्हाट इज...'). If the meaning is English, reply ENTIRELY in English (using English alphabets). If the meaning is Hindi, reply ENTIRELY in Hindi (using Devanagari script). Never mix scripts.\n"
-        "3. LENGTH: You MUST summarize the answer in EXACTLY 4 to 5 short, punchy lines. Do NOT write more than 5 lines.\n"
-        "4. COMPLETION: Keep it concise so it fits the limits. You MUST finish your final sentence completely with a full stop. Never leave the text cut off or hanging midway."
+        "You are an expert, super-chill tech summarizer. Read the context and the user's question.\n"
+        f"CRITICAL RULES:\n"
+        f"1. PERSONA & LANGUAGE: {lang_command}\n"
+        "2. LENGTH: You must summarize the answer in EXACTLY 3 to 4 short, punchy lines. Do NOT exceed this limit.\n"
+        "3. COMPLETION: You MUST finish your final sentence completely with a full stop. Never leave the text cut off or hanging midway."
     )
     
     user_content = f"Context: {context}\n\nQuestion: {query}"
@@ -104,8 +117,8 @@ def groq_llm(query, context):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
         ],
-        "temperature": 0.1,
-        "max_tokens": 400
+        "temperature": 0.2,
+        "max_tokens": 300
     }
     
     try:
@@ -118,6 +131,7 @@ def groq_llm(query, context):
             
     except Exception as e:
         return f"❌ Yikes! System Crash: {str(e)}"
+
 def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
