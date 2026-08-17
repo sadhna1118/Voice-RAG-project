@@ -172,7 +172,7 @@ with col1:
                 st.info(f"**🤖 AI Answer:**\n\n{answer}")
                 
                 if latency < 10:
-                    st.metric(label="⚡ System Latency (Cache Hit)", value=f"{latency} ms")
+                    st.metric(label="⚡ System Latency", value=f"{latency} ms")
                     st.toast('Ultra-Fast Latency Achieved!', icon='🚀')
                 
                 generate_and_play_audio(answer)
@@ -211,4 +211,4 @@ with col2:
                 st.balloons()
             else:
                 st.divider()
-                st.info("🔄 System Initialized & Cache Built! Click 'Run Analytics' again to reveal the <10ms Benchmarks.")
+                st.info("🔄 System Initialized! Click 'Run Analytics' again to reveal the Benchmarks.")
