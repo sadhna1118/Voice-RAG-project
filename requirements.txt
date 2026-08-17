@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+faiss-cpu
+httpx
+numpy
+sentence-transformers
+python-dotenv
+streamlit
+gTTS
+requests
+python-multipart
