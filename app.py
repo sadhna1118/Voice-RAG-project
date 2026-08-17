@@ -111,7 +111,7 @@ def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
     
-    # Check Cache First!
+    # 1. Check Cache First!
     if file_hash in audio_cache:
         latency = round((time.time() - start_time) * 1000, 2)
         cached_data = audio_cache[file_hash]
@@ -126,8 +126,9 @@ def process_query(audio_bytes):
     
     latency = round((time.time() - start_time) * 1000, 2)
     
-    # Save to Cache
-    audio_cache[file_hash] = {"transcript": transcript, "answer": answer}
+    # 2. THE GUARDRAIL: Only save to cache if it is NOT an error
+    if answer != "Error":
+        audio_cache[file_hash] = {"transcript": transcript, "answer": answer}
     
     return transcript, answer, latency
 
