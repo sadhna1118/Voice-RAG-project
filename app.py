@@ -26,7 +26,6 @@ st.divider()
 
 @st.cache_resource(show_spinner=False)
 def load_ai_system():
-
     model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
     index = faiss.read_index("vector.index")
     with open("meta.pkl", "rb") as f:
@@ -40,10 +39,12 @@ def get_audio_hash(audio_bytes):
     return hashlib.md5(audio_bytes).hexdigest()
 
 def sarvam_stt(audio_bytes):
-    url = "https://api.sarvam.ai/speech-to-text-translate"
+    # THE FIX: Removed '-translate' to get exact Hindi text
+    url = "https://api.sarvam.ai/speech-to-text"
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    data = {"prompt": ""}
+    # THE FIX: Added language_code so it listens accurately in both Hindi & English
+    data = {"language_code": "hi-IN", "model": "saaras:v1"} 
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
@@ -120,6 +121,7 @@ def groq_llm(query, context):
             
     except Exception as e:
         return f"❌ System Crash: {str(e)}"
+
 def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
