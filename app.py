@@ -87,27 +87,29 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    if re.search(r'[\u0900-\u097F]', query):
-        lang_rule = "You MUST write the final answer ENTIRELY in Hindi (Devanagari script). No English."
-    else:
-        lang_rule = "You MUST write the final answer ENTIRELY in English. No Hindi."
-
+    is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
+    
     system_prompt = (
-        "You are an expert summarizer. Read the provided context and the user's question.\n"
-        "CRITICAL RULES:\n"
-        f"1. LANGUAGE: {lang_rule}\n"
-        "2. LENGTH: You must summarize the answer in EXACTLY 4 to 5 short lines.\n"
-        "3. COMPLETION: You must complete your final sentence with a proper punctuation mark. Do not leave the answer cut off or incomplete."
+        "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
+        "RULE 1: Keep the answer strictly between 3 to 4 sentences.\n"
+        "RULE 2: Always end with a complete sentence and a proper punctuation mark. Never leave it cut off."
     )
+    
+    if is_hindi:
+        lang_command = "CRITICAL: You MUST answer ENTIRELY in Hindi (Devanagari script). Do not use English."
+    else:
+        lang_command = "CRITICAL: You MUST answer ENTIRELY in English. Do not use Hindi."
+        
+    user_content = f"Context: {context}\n\nQuestion: {query}\n\n{lang_command}"
     
     payload = {
         "model": "openai/gpt-oss-20b",
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Context: {context}\nQuestion: {query}"}
+            {"role": "user", "content": user_content}
         ],
         "temperature": 0.1,
-        "max_tokens": 300
+        "max_completion_tokens": 400
     }
     
     try:
@@ -120,7 +122,6 @@ def groq_llm(query, context):
             
     except Exception as e:
         return f"❌ System Crash: {str(e)}"
-
 def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
