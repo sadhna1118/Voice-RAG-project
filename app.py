@@ -84,24 +84,23 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    # 💥 THE HINGLISH FIX: Detecting words like kya, kyu, kaha, kab, hai 💥
+    # 💥 THE REAL FIX: Removed confusing words like 'me'. Only strict Hindi words. 💥
     query_lower = query.lower()
-    hinglish_pattern = r'\b(kya|kyu|kyun|kaise|kaha|kahan|kab|hai|hain|tha|thi|ho|ko|bhi|se|me|mein|hota|hoti)\b'
+    hinglish_pattern = r'\b(kya|kyu|kyun|kaise|kaha|kahan|kab|kb|hai|hain)\b'
     
-    # Check for Devanagari OR Hinglish words
     if re.search(r'[\u0900-\u097F]', query) or re.search(hinglish_pattern, query_lower):
         # Strict Hindi Prompt
         system_prompt = (
             "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-            "CRITICAL RULE 1: The user asked the question in Hindi/Hinglish. You MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). Do NOT use any English words.\n"
+            "CRITICAL RULE 1: The question is in Hindi/Hinglish. You MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). Do NOT use any English.\n"
             "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
             "CRITICAL RULE 3: Always end the final sentence completely with a full stop ( | ). Never leave the output cut off."
         )
     else:
-        # Strict English Prompt
+        # Strict English Prompt (No translation)
         system_prompt = (
             "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-            "CRITICAL RULE 1: The user asked the question in English. You MUST write the final answer ENTIRELY in English. Do NOT use any Hindi.\n"
+            "CRITICAL RULE 1: The question is in English. You MUST write the final answer ENTIRELY in English. Do NOT translate it to Hindi.\n"
             "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
             "CRITICAL RULE 3: Always end the final sentence completely with a proper full stop ( . ). Never leave the output cut off."
         )
@@ -115,7 +114,7 @@ def groq_llm(query, context):
             {"role": "user", "content": user_content}
         ],
         "temperature": 0.1,  
-        "max_tokens": 300    # Explicitly set to 300 as you requested earlier to prevent long run-ons
+        "max_tokens": 300    
     }
     
     try:
