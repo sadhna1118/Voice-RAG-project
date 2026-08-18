@@ -101,7 +101,7 @@ def groq_llm(query, context):
     user_content = f"Context: {context}\n\nQuestion: {query}"
     
     payload = {
-        "model": "mixtral-8x7b-32768",  # Safe and highly capable model for Hinglish
+        "model": "openai/gpt-oss-20b",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
