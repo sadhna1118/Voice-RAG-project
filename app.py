@@ -39,18 +39,18 @@ def get_audio_hash(audio_bytes):
     return hashlib.md5(audio_bytes).hexdigest()
 
 def sarvam_stt(audio_bytes):
-    url = "https://api.sarvam.ai/speech-to-text"
+    url = "https://api.sarvam.ai/speech-to-text-translate" # Translate endpoint gives clean English base for logic
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
     
-    data = {"prompt": "", "language_code": "hi-IN"} 
+    # Removed "hi-IN" forced code. We let the model handle it naturally.
+    data = {"prompt": ""} 
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
         return res.json().get("transcript", "") if res.status_code == 200 else ""
     except:
         return ""
-
 def retrieve_context(query):
     query_vector = model.encode([query]).astype('float32')
     distances, indices = index.search(query_vector, k=3)
@@ -84,23 +84,13 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    # 💥 THE 2000% FIX: PYTHON BASED LANGUAGE ROUTING 💥
-    if re.search(r'[\u0900-\u097F]', query):
-        # Strict Hindi Prompt
-        system_prompt = (
-            "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-            "CRITICAL RULE 1: You MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). Do NOT use any English.\n"
-            "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
-            "CRITICAL RULE 3: Always end the final sentence completely with a full stop ( | ). Never leave the output cut off."
-        )
-    else:
-        # Strict English Prompt
-        system_prompt = (
-            "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-            "CRITICAL RULE 1: You MUST write the final answer ENTIRELY in English. Do NOT use any Hindi.\n"
-            "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
-            "CRITICAL RULE 3: Always end the final sentence completely with a proper full stop ( . ). Never leave the output cut off."
-        )
+    # 💥 THE ULTIMATE PROMPT: NO REGEX, NO CUT-OFFS 💥
+    system_prompt = (
+        "You are an expert AI assistant. Read the Context and the user's Question.\n\n"
+        "CRITICAL RULES:\n"
+        "1. LANGUAGE MATCHING: Detect the language of the user's Question. If the user asks in pure English, reply ENTIRELY in English. If the user asks in Hindi or Hinglish, reply ENTIRELY in Hindi (Devanagari script).\n"
+        "2. LENGTH & COMPLETION: You must summarize your answer in a MAXIMUM of 2 to 3 short sentences. You must finish your thought completely and end with a proper full stop (.). Do NOT exceed 3 sentences to avoid being cut off."
+    )
     
     user_content = f"Context: {context}\n\nQuestion: {query}"
     
