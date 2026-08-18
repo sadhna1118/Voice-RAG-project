@@ -39,18 +39,16 @@ def get_audio_hash(audio_bytes):
     return hashlib.md5(audio_bytes).hexdigest()
 
 def sarvam_stt(audio_bytes):
-    url = "https://api.sarvam.ai/speech-to-text"
+    url = "https://api.sarvam.ai/speech-to-text"  
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    
-    data = {"prompt": "", "language_code": "hi-IN"} 
+    data = {"language_code": "hi-IN"}
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
         return res.json().get("transcript", "") if res.status_code == 200 else ""
     except:
         return ""
-
 def retrieve_context(query):
     query_vector = model.encode([query]).astype('float32')
     distances, indices = index.search(query_vector, k=3)
