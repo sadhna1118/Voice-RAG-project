@@ -26,7 +26,6 @@ st.divider()
 
 @st.cache_resource(show_spinner=False)
 def load_ai_system():
-    
     model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
     index = faiss.read_index("vector.index")
     with open("meta.pkl", "rb") as f:
@@ -57,14 +56,11 @@ def retrieve_context(query):
     distances, indices = index.search(query_vector, k=3)
     
     valid_chunks = []
-    
     for i in indices[0]:
         idx = int(i)
-        
         if idx != -1:
             try:
                 chunk = meta[idx]
-                
                 if isinstance(chunk, dict):
                     valid_chunks.append(str(chunk.get("text", chunk)))
                 else:
@@ -88,17 +84,23 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
+    # 💥 THE 2000% FIX: PYTHON BASED LANGUAGE ROUTING 💥
     if re.search(r'[\u0900-\u097F]', query):
-        lang_rule = "Write the final answer ENTIRELY in pure Hindi (Devanagari script). DO NOT use any English words."
+        # Strict Hindi Prompt
+        system_prompt = (
+            "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
+            "CRITICAL RULE 1: You MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). Do NOT use any English.\n"
+            "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
+            "CRITICAL RULE 3: Always end the final sentence completely with a full stop ( | ). Never leave the output cut off."
+        )
     else:
-        lang_rule = "Write the final answer ENTIRELY in pure English. DO NOT use any Hindi words."
-    
-    system_prompt = (
-        "You are an expert summarizer. Analyze the context and answer the user's question accurately.\n"
-        f"CRITICAL RULE 1 (LANGUAGE): {lang_rule}\n"
-        "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 3 to 4 short sentences. DO NOT exceed this length.\n"
-        "CRITICAL RULE 3 (COMPLETION): Always end with a complete sentence and a proper full stop. Never leave the output cut off."
-    )
+        # Strict English Prompt
+        system_prompt = (
+            "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
+            "CRITICAL RULE 1: You MUST write the final answer ENTIRELY in English. Do NOT use any Hindi.\n"
+            "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
+            "CRITICAL RULE 3: Always end the final sentence completely with a proper full stop ( . ). Never leave the output cut off."
+        )
     
     user_content = f"Context: {context}\n\nQuestion: {query}"
     
@@ -122,6 +124,7 @@ def groq_llm(query, context):
             
     except Exception as e:
         return f"❌ System Crash: {str(e)}"
+
 def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
