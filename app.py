@@ -26,6 +26,7 @@ st.divider()
 
 @st.cache_resource(show_spinner=False)
 def load_ai_system():
+    
     model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
     index = faiss.read_index("vector.index")
     with open("meta.pkl", "rb") as f:
@@ -43,22 +44,25 @@ def sarvam_stt(audio_bytes):
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
     data = {"language_code": "hi-IN"}
-    
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
         return res.json().get("transcript", "") if res.status_code == 200 else ""
     except:
         return ""
+
 def retrieve_context(query):
     query_vector = model.encode([query]).astype('float32')
     distances, indices = index.search(query_vector, k=3)
     
     valid_chunks = []
+    
     for i in indices[0]:
         idx = int(i)
+        
         if idx != -1:
             try:
                 chunk = meta[idx]
+                
                 if isinstance(chunk, dict):
                     valid_chunks.append(str(chunk.get("text", chunk)))
                 else:
@@ -82,15 +86,18 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    # 💥 THE REAL FIX: No more Python Regex. Let the AI detect the "spoken" language. 💥
+    is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
+    
+    if is_hindi:
+        lang_command = "You MUST translate and write the final answer ENTIRELY in pure Hindi (Devanagari script). No English words allowed."
+    else:
+        lang_command = "You MUST write the final answer ENTIRELY in English. No Hindi words allowed."
+        
     system_prompt = (
-        "You are an expert AI assistant answering questions based on context.\n"
-        "IMPORTANT: The user's question was transcribed from voice. Sometimes, English speech is written using Hindi (Devanagari) script (for example: 'व्हाट इज कॉर्पोरेशन' actually means the English sentence 'What is corporation').\n\n"
-        "CRITICAL RULES:\n"
-        "1. DETECT SPOKEN LANGUAGE: Read the question phonetically. If the spoken words are English (like 'व्हाट इज'), you MUST write your entire answer strictly in ENGLISH.\n"
-        "2. If the spoken words are Hindi (like 'क्या है'), you MUST write your entire answer strictly in pure HINDI (Devanagari script).\n"
-        "3. LENGTH: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed.\n"
-        "4. COMPLETION: Always end the final sentence completely with a proper punctuation mark (. or |). Never leave the output cut off."
+        "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
+        f"CRITICAL RULE 1 (LANGUAGE): {lang_command}\n"
+        "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 3 to 4 short sentences. DO NOT exceed this length.\n"
+        "CRITICAL RULE 3 (COMPLETION): Always end with a complete sentence and a proper full stop. Never leave the output cut off."
     )
     
     user_content = f"Context: {context}\n\nQuestion: {query}"
@@ -101,8 +108,8 @@ def groq_llm(query, context):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
         ],
-        "temperature": 0.1,  
-        "max_tokens": 300    
+        "temperature": 0.1,
+        "max_tokens": 400
     }
     
     try:
@@ -115,7 +122,6 @@ def groq_llm(query, context):
             
     except Exception as e:
         return f"❌ System Crash: {str(e)}"
-
 def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
