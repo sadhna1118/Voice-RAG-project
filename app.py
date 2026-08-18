@@ -26,6 +26,7 @@ st.divider()
 
 @st.cache_resource(show_spinner=False)
 def load_ai_system():
+    
     model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
     index = faiss.read_index("vector.index")
     with open("meta.pkl", "rb") as f:
@@ -39,12 +40,10 @@ def get_audio_hash(audio_bytes):
     return hashlib.md5(audio_bytes).hexdigest()
 
 def sarvam_stt(audio_bytes):
-    # FIXED 1: Hata diya '-translate' taaki original aawaz text mein aaye
-    url = "https://api.sarvam.ai/speech-to-text"
+    url = "https://api.sarvam.ai/speech-to-text-translate"
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    # FIXED 2: Code-mixed (Hindi/English/Hinglish) handle karne ke liye
-    data = {"language_code": "hi-IN"}
+    data = {"prompt": ""}
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
@@ -60,9 +59,11 @@ def retrieve_context(query):
     
     for i in indices[0]:
         idx = int(i)
+        
         if idx != -1:
             try:
                 chunk = meta[idx]
+                
                 if isinstance(chunk, dict):
                     valid_chunks.append(str(chunk.get("text", chunk)))
                 else:
@@ -86,14 +87,16 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    # FIXED 3: Ultimate Dynamic Prompt (English, Hindi, aur Hinglish teeno ke liye)
+    is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
+    
+    if is_hindi:
+        lang_command = "You MUST translate and write the final answer ENTIRELY in pure Hindi (Devanagari script). No English words allowed."
+    else:
+        lang_command = "You MUST write the final answer ENTIRELY in English. No Hindi words allowed."
+        
     system_prompt = (
         "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-        "CRITICAL RULE 1 (LANGUAGE MIRRORING): Analyze the exact language and script of the user's Question. "
-        "If the Question is in pure English, you MUST answer ENTIRELY in pure English. "
-        "If the Question is in pure Hindi (Devanagari script), you MUST answer ENTIRELY in pure Hindi (Devanagari). "
-        "If the Question is in Hinglish (Hindi words written in the English alphabet), you MUST answer ENTIRELY in Hinglish. "
-        "DO NOT cross languages. Mirror the user's exact language and tone.\n"
+        f"CRITICAL RULE 1 (LANGUAGE): {lang_command}\n"
         "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 3 to 4 short sentences. DO NOT exceed this length.\n"
         "CRITICAL RULE 3 (COMPLETION): Always end with a complete sentence and a proper full stop. Never leave the output cut off."
     )
@@ -112,13 +115,14 @@ def groq_llm(query, context):
     
     try:
         res = requests.post(url, headers=headers, json=payload, timeout=10.0)
+        
         if res.status_code == 200:
             return res.json()["choices"][0]["message"]["content"]
         else:
             return f"❌ API Error {res.status_code}: {res.text}"
+            
     except Exception as e:
         return f"❌ System Crash: {str(e)}"
-
 def process_query(audio_bytes):
     start_time = time.time()
     file_hash = get_audio_hash(audio_bytes)
@@ -144,7 +148,6 @@ def process_query(audio_bytes):
 
 def generate_and_play_audio(text):
     if text and "Error" not in text:
-        # Detect Devanagari for TTS language selection
         detected_lang = 'hi' if re.search(r'[\u0900-\u097F]', text) else 'en'
         tts = gTTS(text=text, lang=detected_lang)
         tts.save("temp_answer.mp3")
