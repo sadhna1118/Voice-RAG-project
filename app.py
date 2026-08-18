@@ -88,12 +88,14 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
+    if re.search(r'[\u0900-\u097F]', query):
+        lang_rule = "Write the final answer ENTIRELY in pure Hindi (Devanagari script). DO NOT use any English words."
+    else:
+        lang_rule = "Write the final answer ENTIRELY in pure English. DO NOT use any Hindi words."
+    
     system_prompt = (
-        "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-        "CRITICAL RULE 1 (DYNAMIC LANGUAGE DETECTION): Analyze the language of the user's Question. "
-        "If the Question is in Hindi (written in Devanagari script) OR Hinglish (Hindi written in English alphabet, e.g., 'kya hai'), "
-        "you MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). "
-        "If the Question is purely in English, write the answer ENTIRELY in English.\n"
+        "You are an expert summarizer. Analyze the context and answer the user's question accurately.\n"
+        f"CRITICAL RULE 1 (LANGUAGE): {lang_rule}\n"
         "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 3 to 4 short sentences. DO NOT exceed this length.\n"
         "CRITICAL RULE 3 (COMPLETION): Always end with a complete sentence and a proper full stop. Never leave the output cut off."
     )
