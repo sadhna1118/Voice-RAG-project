@@ -84,15 +84,20 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    # 💥 THE REAL FIX: Removed confusing words like 'me'. Only strict Hindi words. 💥
+    # 💥 THE ULTIMATE FIX: Grammar & Word Detection instead of Script Detection 💥
     query_lower = query.lower()
-    hinglish_pattern = r'\b(kya|kyu|kyun|kaise|kaha|kahan|kab|kb|hai|hain)\b'
     
-    if re.search(r'[\u0900-\u097F]', query) or re.search(hinglish_pattern, query_lower):
+    # Matches actual Hindi words in Devanagari script (ignores transliterated English like व्हाट इज)
+    hindi_dev_pattern = r'\b(क्या|क्यों|कैसे|कहाँ|कब|कौन|है|हैं|था|थी|थे|हूँ|हो|कर|बता|बताओ|का|के|की|में|से|और|लिए|ये|वह|जो|हाँ|नहीं)\b'
+    
+    # Matches Hindi words written in English (Hinglish)
+    hinglish_pattern = r'\b(kya|kyu|kyun|kaise|kaha|kahan|kab|kb|kaun|hai|hain|tha|thi|the|hu|ho|kar|bata|batao|ka|ke|ki|me|mein|se|aur|liye|ye|woh|jo|haa|nahi)\b'
+    
+    if re.search(hindi_dev_pattern, query) or re.search(hinglish_pattern, query_lower):
         # Strict Hindi Prompt
         system_prompt = (
             "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-            "CRITICAL RULE 1: The question is in Hindi/Hinglish. You MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). Do NOT use any English.\n"
+            "CRITICAL RULE 1: The user asked in Hindi. You MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). Do NOT use any English.\n"
             "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
             "CRITICAL RULE 3: Always end the final sentence completely with a full stop ( | ). Never leave the output cut off."
         )
@@ -100,7 +105,7 @@ def groq_llm(query, context):
         # Strict English Prompt (No translation)
         system_prompt = (
             "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-            "CRITICAL RULE 1: The question is in English. You MUST write the final answer ENTIRELY in English. Do NOT translate it to Hindi.\n"
+            "CRITICAL RULE 1: The user asked in English. You MUST write the final answer ENTIRELY in English. Do NOT translate it to Hindi.\n"
             "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
             "CRITICAL RULE 3: Always end the final sentence completely with a proper full stop ( . ). Never leave the output cut off."
         )
@@ -114,7 +119,7 @@ def groq_llm(query, context):
             {"role": "user", "content": user_content}
         ],
         "temperature": 0.1,  
-        "max_tokens": 300    
+        "max_tokens": 400    
     }
     
     try:
