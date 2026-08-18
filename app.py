@@ -84,31 +84,16 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    # 💥 THE ULTIMATE FIX: Grammar & Word Detection instead of Script Detection 💥
-    query_lower = query.lower()
-    
-    # Matches actual Hindi words in Devanagari script (ignores transliterated English like व्हाट इज)
-    hindi_dev_pattern = r'\b(क्या|क्यों|कैसे|कहाँ|कब|कौन|है|हैं|था|थी|थे|हूँ|हो|कर|बता|बताओ|का|के|की|में|से|और|लिए|ये|वह|जो|हाँ|नहीं)\b'
-    
-    # Matches Hindi words written in English (Hinglish)
-    hinglish_pattern = r'\b(kya|kyu|kyun|kaise|kaha|kahan|kab|kb|kaun|hai|hain|tha|thi|the|hu|ho|kar|bata|batao|ka|ke|ki|me|mein|se|aur|liye|ye|woh|jo|haa|nahi)\b'
-    
-    if re.search(hindi_dev_pattern, query) or re.search(hinglish_pattern, query_lower):
-        # Strict Hindi Prompt
-        system_prompt = (
-            "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-            "CRITICAL RULE 1: The user asked in Hindi. You MUST write the final answer ENTIRELY in pure Hindi (Devanagari script). Do NOT use any English.\n"
-            "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
-            "CRITICAL RULE 3: Always end the final sentence completely with a full stop ( | ). Never leave the output cut off."
-        )
-    else:
-        # Strict English Prompt (No translation)
-        system_prompt = (
-            "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-            "CRITICAL RULE 1: The user asked in English. You MUST write the final answer ENTIRELY in English. Do NOT translate it to Hindi.\n"
-            "CRITICAL RULE 2: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed this length.\n"
-            "CRITICAL RULE 3: Always end the final sentence completely with a proper full stop ( . ). Never leave the output cut off."
-        )
+    # 💥 THE REAL FIX: No more Python Regex. Let the AI detect the "spoken" language. 💥
+    system_prompt = (
+        "You are an expert AI assistant answering questions based on context.\n"
+        "IMPORTANT: The user's question was transcribed from voice. Sometimes, English speech is written using Hindi (Devanagari) script (for example: 'व्हाट इज कॉर्पोरेशन' actually means the English sentence 'What is corporation').\n\n"
+        "CRITICAL RULES:\n"
+        "1. DETECT SPOKEN LANGUAGE: Read the question phonetically. If the spoken words are English (like 'व्हाट इज'), you MUST write your entire answer strictly in ENGLISH.\n"
+        "2. If the spoken words are Hindi (like 'क्या है'), you MUST write your entire answer strictly in pure HINDI (Devanagari script).\n"
+        "3. LENGTH: Keep the answer STRICTLY between 3 to 4 short sentences. DO NOT exceed.\n"
+        "4. COMPLETION: Always end the final sentence completely with a proper punctuation mark (. or |). Never leave the output cut off."
+    )
     
     user_content = f"Context: {context}\n\nQuestion: {query}"
     
@@ -119,7 +104,7 @@ def groq_llm(query, context):
             {"role": "user", "content": user_content}
         ],
         "temperature": 0.1,  
-        "max_tokens": 400    
+        "max_tokens": 300    
     }
     
     try:
