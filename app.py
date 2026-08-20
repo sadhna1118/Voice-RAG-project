@@ -43,7 +43,10 @@ def sarvam_stt(audio_bytes):
     url = "https://api.sarvam.ai/speech-to-text"
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    data = {"language_code": "unknown"}
+    data = {
+        "model": "saaras:v3",
+        "language_code": "unknown"
+    }
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
@@ -87,7 +90,13 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    lang_command = "You MUST answer in the EXACT SAME LANGUAGE as the user's question. If the user asks in Hindi, you MUST reply entirely in pure Hindi (Devanagari script). If the user asks in English, reply entirely in English. Do not mix languages."
+    lang_command = (
+        "Identify the language of the user's question. "
+        "If the question is in Hindi (whether written in Devanagari or Roman/English script like 'kya haal hai'), "
+        "you MUST reply entirely in pure Hindi using Devanagari script. "
+        "If the question is in English, reply entirely in English. "
+        "Never translate a Hindi query to English."
+    )
         
     system_prompt = (
         "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
@@ -203,30 +212,24 @@ with col1:
                     x.id = 'custom-clear-mic';
                     x.innerHTML = '✖';
                     x.style.position = 'absolute';
-                    x.style.right = '12px';
-                    x.style.bottom = '18px';
+                    x.style.right = '15px';
+                    x.style.top = '50%';
+                    x.style.transform = 'translateY(-50%)';
                     x.style.cursor = 'pointer';
                     x.style.fontSize = '13px';
                     x.style.color = '#ff4b4b'; // Red color
                     x.style.zIndex = '999';
                     x.style.transition = 'transform 0.2s';
                     x.title = "Clear Recording";
+                    x.style.display = 'none'; // Hidden by default
                     
-                    x.onmouseover = function() { this.style.transform = 'scale(1.3)'; };
-                    x.onmouseout = function() { this.style.transform = 'scale(1)'; };
+                    x.onmouseover = function() { this.style.transform = 'translateY(-50%) scale(1.3)'; };
+                    x.onmouseout = function() { this.style.transform = 'translateY(-50%) scale(1)'; };
                     
-                    audioInput.style.position = 'relative';
-                    audioInput.appendChild(x);
-                    
-                    // Shift the timer text left so they don't overlap
-                    var allElements = audioInput.querySelectorAll('*');
-                    allElements.forEach(function(el) {
-                        if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
-                            if (/^\d{1,2}:\d{2}$/.test(el.innerText.trim())) {
-                                el.style.transform = 'translateX(-15px)';
-                            }
-                        }
-                    });
+                    // Attach to the actual record box (usually the second child after the label)
+                    var recordArea = audioInput.children.length > 1 ? audioInput.children[1] : audioInput;
+                    recordArea.style.position = 'relative';
+                    recordArea.appendChild(x);
                     
                     x.onclick = function(e) {
                         e.stopPropagation();
@@ -240,12 +243,41 @@ with col1:
                         });
                     };
                 }
+                
+                // Toggle visibility based on whether audio is recorded (i.e. native clear button exists)
+                var customX = audioInput.querySelector('#custom-clear-mic');
+                if (customX) {
+                    var hasRecorded = false;
+                    var btns = audioInput.querySelectorAll('button');
+                    btns.forEach(function(btn) {
+                        var label = (btn.getAttribute('aria-label') || '').toLowerCase();
+                        if (label.includes('clear') || label.includes('delete') || label.includes('remove') || label.includes('reset')) {
+                            hasRecorded = true;
+                        }
+                    });
+                    customX.style.display = hasRecorded ? 'block' : 'none';
+                }
+                
+                // Shift the timer text left so they don't overlap
+                var allElements = audioInput.querySelectorAll('*');
+                allElements.forEach(function(el) {
+                    if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
+                        if (/^\d{1,2}:\d{2}$/.test(el.innerText.trim())) {
+                            if (el.style.transform !== 'translateX(-15px)') {
+                                el.style.transform = 'translateX(-15px)';
+                            }
+                        }
+                    }
+                });
             });
         }, 500);
     </script>
     """, height=0)
 
     uploaded_file = st.file_uploader("Or upload an audio file (.wav)", type=["wav"], key="single_upload")
+    if uploaded_file is not None:
+        st.audio(uploaded_file, format="audio/wav")
+
     
     audio_source = recorded_audio if recorded_audio else uploaded_file
     
