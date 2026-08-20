@@ -13,14 +13,281 @@ from gtts import gTTS
 st.set_page_config(page_title="RAG Voice Engine", page_icon="🎙️", layout="wide")
 
 st.markdown("""
+    <!-- App-like Meta Tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+
     <style>
-    .main { background-color: #0E1117; color: #00FF41; font-family: 'Courier New', Courier, monospace; }
-    h1, h2, h3 { color: #00FF41 !important; text-shadow: 0 0 5px #00FF41; }
-    .stAudio { border-radius: 10px; border: 1px solid #00FF41; }
+    /* Hide Streamlit Header/Footer for Native App Feel */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stDeployButton {display: none;}
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+    
+    /* Base Font and Color */
+    .main { background-color: #050805; color: #00FF41; font-family: 'Share Tech Mono', 'Courier New', Courier, monospace; }
+    h1, h2, h3, p, label, .stMarkdown { font-family: 'Share Tech Mono', 'Courier New', Courier, monospace !important; color: #00FF41 !important; }
+    h1, h2, h3 { text-shadow: 0 0 10px rgba(0, 255, 65, 0.8), 0 0 20px rgba(0, 255, 65, 0.4); }
+    
+    /* Ensure icons retain their font family to prevent ligatures like 'upload' from showing as text */
+    span, div { color: #00FF41; }
+    
+    /* Background Radar Animation */
+    .stApp {
+        background-color: #050805 !important;
+        background-image: 
+            radial-gradient(circle at center, rgba(0,255,65,0.15) 0%, transparent 80%),
+            linear-gradient(rgba(0, 255, 65, 0.15) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 255, 65, 0.15) 1px, transparent 1px);
+        background-size: 100% 100%, 30px 30px, 30px 30px;
+    }
+    
+    /* Rotating Radar Sweep */
+    .stApp::before {
+        content: "";
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 150vmax;
+        height: 150vmax;
+        margin-top: -75vmax;
+        margin-left: -75vmax;
+        background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 270deg, rgba(0, 255, 65, 0.6) 350deg, rgba(0, 255, 65, 1.0) 360deg);
+        border-radius: 50%;
+        animation: radar-spin 4s linear infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+    
+    /* Static Radar Rings */
+    .stApp::after {
+        content: "";
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100vw;
+        height: 100vh;
+        background: 
+            repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent calc(8vw - 1px), rgba(0, 255, 65, 0.6) 8vw),
+            linear-gradient(90deg, transparent calc(50% - 1px), rgba(0, 255, 65, 0.7) 50%, transparent calc(50% + 1px)),
+            linear-gradient(0deg, transparent calc(50% - 1px), rgba(0, 255, 65, 0.7) 50%, transparent calc(50% + 1px));
+        pointer-events: none;
+        z-index: 0;
+    }
+    
+    @keyframes radar-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Scanline Overlay on the whole app */
+    [data-testid="stAppViewContainer"]::before {
+        content: " ";
+        display: block;
+        position: fixed;
+        top: 0; left: 0; bottom: 0; right: 0;
+        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
+        background-size: 100% 4px;
+        z-index: 9999;
+        pointer-events: none;
+    }
+    
+    /* Main Content Wrapper - Keep Above Radar */
+    .block-container {
+        position: relative;
+        z-index: 10;
+        background: rgba(14, 17, 23, 0.4) !important;
+        border: 1px solid rgba(0, 255, 65, 0.6);
+        box-shadow: 0 0 25px rgba(0, 255, 65, 0.3);
+        border-radius: 12px;
+        padding: 2rem !important;
+        backdrop-filter: blur(8px);
+    }
+    
+    /* Glowing Buttons - No Double Text */
+    .stButton > button {
+        background-color: transparent !important;
+        border: 1px solid #00FF41 !important;
+        box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        background-color: rgba(0, 255, 65, 0.15) !important;
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.6);
+        transform: scale(1.02);
+    }
+    
+    /* Uploader & Audio Styling */
+    [data-testid="stFileUploader"] {
+        background-color: rgba(0, 255, 65, 0.02);
+        border: 1px dashed rgba(0, 255, 65, 0.4);
+        transition: 0.3s;
+        border-radius: 8px;
+    }
+    [data-testid="stFileUploader"]:hover {
+        border: 1px solid #00FF41;
+        box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+    }
+    .stAudio { 
+        border-radius: 10px; 
+        border: 1px solid #00FF41; 
+        box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+    }
+    
+    /* Native Audio Player Hacker Theme */
+    audio {
+        border-radius: 10px;
+    }
+    audio::-webkit-media-controls-panel {
+        background-color: #050805 !important;
+    }
+    audio::-webkit-media-controls-timeline,
+    audio::-webkit-media-controls-play-button,
+    audio::-webkit-media-controls-mute-button,
+    audio::-webkit-media-controls-volume-slider {
+        filter: sepia(100%) saturate(700%) hue-rotate(70deg) brightness(1.2) contrast(1.2);
+    }
+    audio::-webkit-media-controls-current-time-display,
+    audio::-webkit-media-controls-time-remaining-display {
+        color: #00FF41 !important;
+        text-shadow: 0 0 5px rgba(0,255,65,0.5);
+    }
+    
+    /* Mobile Responsiveness & App-like Feel */
+    @media (max-width: 768px) {
+        .block-container {
+            padding: 1.5rem 1rem !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+            border-radius: 8px;
+        }
+        h1 { font-size: 1.5rem !important; }
+        h3 { font-size: 1rem !important; }
+        
+        /* Prevent radar sweep from creating horizontal scroll on mobile */
+        [data-testid="stAppViewContainer"] {
+            overflow-x: hidden;
+        }
+        
+        /* Better touch targets for buttons */
+        .stButton > button {
+            padding: 0.5rem 1rem !important;
+        }
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🎙️ VOICE ENABLED RAG SYSTEM BY SADHNA")
+theme_col1, theme_col2 = st.columns([0.85, 0.15])
+with theme_col1:
+    st.title("🎙️ VOICE ENABLED RAG SYSTEM BY SADHNA")
+with theme_col2:
+    if 'is_light' not in st.session_state:
+        st.session_state.is_light = False
+    is_light_mode = st.toggle("🌙" if st.session_state.is_light else "☀️", key="is_light")
+
+if is_light_mode:
+    st.markdown("""
+        <style>
+        /* Magical Dreamy Light Theme Overrides */
+        .main, .stApp { background-color: #FFF0F5 !important; }
+        
+        /* Unified Pinkish-Purple Color for Everything (matching title gradient) */
+        h1, h2, h3, p, label, .stMarkdown, span, div { color: #C13584 !important; text-shadow: none !important; }
+        
+        /* Pastel/Dreamy Text Glow */
+        h1 {
+            background: -webkit-linear-gradient(45deg, #FF6B6B, #833AB4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(193, 53, 132, 0.3) !important;
+        }
+        
+        /* Dreamy Background Grid & Radar */
+        .stApp {
+            background-image: 
+                radial-gradient(circle at top right, rgba(253, 29, 29, 0.2) 0%, transparent 60%),
+                radial-gradient(circle at bottom left, rgba(131, 58, 180, 0.2) 0%, transparent 60%),
+                linear-gradient(rgba(193, 53, 132, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(193, 53, 132, 0.15) 1px, transparent 1px) !important;
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px !important;
+        }
+        
+        .stApp::before {
+            background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 270deg, rgba(255, 107, 107, 0.6) 350deg, rgba(131, 58, 180, 0.9) 360deg) !important;
+        }
+        
+        .stApp::after {
+            background: 
+                repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent calc(8vw - 1px), rgba(193, 53, 132, 0.3) 8vw),
+                linear-gradient(90deg, transparent calc(50% - 1px), rgba(131, 58, 180, 0.3) 50%, transparent calc(50% + 1px)),
+                linear-gradient(0deg, transparent calc(50% - 1px), rgba(131, 58, 180, 0.3) 50%, transparent calc(50% + 1px)) !important;
+        }
+        
+        /* Disable Scanlines in light mode */
+        [data-testid="stAppViewContainer"]::before { display: none !important; }
+        
+        /* Glassmorphism Content Wrapper */
+        .block-container {
+            background: rgba(255, 255, 255, 0.5) !important;
+            border: 1px solid rgba(193, 53, 132, 0.5) !important;
+            box-shadow: 0 10px 40px rgba(131, 58, 180, 0.25) !important;
+            backdrop-filter: blur(20px) !important;
+        }
+        
+        /* Soft Buttons */
+        .stButton > button {
+            background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%) !important;
+            border: none !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 15px rgba(255, 154, 158, 0.4) !important;
+            border-radius: 20px !important;
+            font-weight: bold;
+        }
+        .stButton > button:hover {
+            background: linear-gradient(135deg, #FECFEF 0%, #FF9A9E 100%) !important;
+            box-shadow: 0 6px 20px rgba(255, 154, 158, 0.6) !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+        }
+        .stButton > button * { color: inherit !important; }
+        
+        /* Uploader & Audio */
+        [data-testid="stFileUploader"] {
+            background-color: rgba(255, 255, 255, 0.4) !important;
+            border: 2px dashed rgba(193, 53, 132, 0.6) !important;
+            border-radius: 12px !important;
+        }
+        [data-testid="stFileUploader"]:hover {
+            border-color: #C13584 !important;
+            box-shadow: 0 0 15px rgba(193, 53, 132, 0.4) !important;
+        }
+        
+        .stAudio {
+            border-radius: 12px !important; 
+            border: 1px solid rgba(193, 53, 132, 0.5) !important; 
+            box-shadow: 0 4px 15px rgba(193, 53, 132, 0.3) !important;
+        }
+        
+        /* Native Audio Player Dreamy Theme */
+        audio::-webkit-media-controls-panel { background-color: #FFF0F5 !important; }
+        audio::-webkit-media-controls-timeline,
+        audio::-webkit-media-controls-play-button,
+        audio::-webkit-media-controls-mute-button,
+        audio::-webkit-media-controls-volume-slider {
+            filter: invert(40%) sepia(80%) saturate(2000%) hue-rotate(300deg) brightness(1.1) contrast(1.2) !important;
+        }
+        audio::-webkit-media-controls-current-time-display,
+        audio::-webkit-media-controls-time-remaining-display {
+            color: #833AB4 !important;
+            text-shadow: none !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
 st.markdown("### Powered by FAISS, Sarvam AI & Groq (Serverless Edition)")
 st.divider()
 
@@ -198,7 +465,6 @@ with col1:
     st.header("1. Live Query")
     recorded_audio = st.audio_input("Record your question live:")
     
-    # Inject Custom X (Clear) Button inside the Mic Box without refreshing page
     import streamlit.components.v1 as components
     components.html("""
     <script>
