@@ -217,14 +217,14 @@ if is_light_mode:
         }
         
         .stApp::before {
-            background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 270deg, rgba(255, 107, 107, 0.6) 350deg, rgba(131, 58, 180, 0.9) 360deg) !important;
+            background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 270deg, rgba(193, 53, 132, 0.8) 350deg, rgba(131, 58, 180, 1.0) 360deg) !important;
         }
         
         .stApp::after {
             background: 
-                repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent calc(8vw - 1px), rgba(193, 53, 132, 0.3) 8vw),
-                linear-gradient(90deg, transparent calc(50% - 1px), rgba(131, 58, 180, 0.3) 50%, transparent calc(50% + 1px)),
-                linear-gradient(0deg, transparent calc(50% - 1px), rgba(131, 58, 180, 0.3) 50%, transparent calc(50% + 1px)) !important;
+                repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent calc(8vw - 1px), rgba(193, 53, 132, 0.5) 8vw),
+                linear-gradient(90deg, transparent calc(50% - 1px), rgba(131, 58, 180, 0.4) 50%, transparent calc(50% + 1px)),
+                linear-gradient(0deg, transparent calc(50% - 1px), rgba(131, 58, 180, 0.4) 50%, transparent calc(50% + 1px)) !important;
         }
         
         /* Disable Scanlines in light mode */
@@ -232,11 +232,20 @@ if is_light_mode:
         
         /* Glassmorphism Content Wrapper */
         .block-container {
-            background: rgba(255, 255, 255, 0.5) !important;
+            background: rgba(255, 255, 255, 0.2) !important;
             border: 1px solid rgba(193, 53, 132, 0.5) !important;
             box-shadow: 0 10px 40px rgba(131, 58, 180, 0.25) !important;
-            backdrop-filter: blur(20px) !important;
+            backdrop-filter: blur(10px) !important;
         }
+        
+        /* Alerts & Info Boxes (AI Responses) matching Light Theme */
+        [data-testid="stAlert"] {
+            background-color: rgba(255, 255, 255, 0.3) !important;
+            border: 1px solid rgba(193, 53, 132, 0.6) !important;
+            border-radius: 12px !important;
+            color: #C13584 !important;
+        }
+        [data-testid="stAlert"] * { color: #C13584 !important; }
         
         /* Soft Buttons */
         .stButton > button {
