@@ -40,10 +40,10 @@ def get_audio_hash(audio_bytes):
     return hashlib.md5(audio_bytes).hexdigest()
 
 def sarvam_stt(audio_bytes):
-    url = "https://api.sarvam.ai/speech-to-text-translate"
+    url = "https://api.sarvam.ai/speech-to-text"
     headers = {"api-subscription-key": os.getenv("SARVAM_API_KEY", "")}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    data = {"prompt": ""}
+    data = {"language_code": "unknown"}
     
     try:
         res = requests.post(url, headers=headers, files=files, data=data, timeout=5.0)
@@ -87,12 +87,7 @@ def groq_llm(query, context):
         
     headers = {"Authorization": f"Bearer {api_key}"}
     
-    is_hindi = bool(re.search(r'[\u0900-\u097F]', query))
-    
-    if is_hindi:
-        lang_command = "You MUST translate and write the final answer ENTIRELY in pure Hindi (Devanagari script). No English words allowed."
-    else:
-        lang_command = "You MUST write the final answer ENTIRELY in English. No Hindi words allowed."
+    lang_command = "You MUST answer in the EXACT SAME LANGUAGE as the user's question. If the user asks in Hindi, you MUST reply entirely in pure Hindi (Devanagari script). If the user asks in English, reply entirely in English. Do not mix languages."
         
     system_prompt = (
         "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
@@ -151,13 +146,105 @@ def generate_and_play_audio(text):
         detected_lang = 'hi' if re.search(r'[\u0900-\u097F]', text) else 'en'
         tts = gTTS(text=text, lang=detected_lang)
         tts.save("temp_answer.mp3")
+        
         st.audio("temp_answer.mp3", format="audio/mp3", autoplay=True)
+        
+        c1, c2 = st.columns([1, 1])
+        
+        with c1:
+            with open("temp_answer.mp3", "rb") as f:
+                st.download_button(
+                    label="⬇️ Download Audio Answer",
+                    data=f,
+                    file_name="ai_response.mp3",
+                    mime="audio/mp3",
+                    use_container_width=True
+                )
+                
+        with c2:
+            import streamlit.components.v1 as components
+            html_code = """
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Courier New', Courier, monospace; color: #00FF41; height: 100%; margin-top: 5px;">
+                <label style="font-weight: bold; margin:0;">Voice Speed:</label>
+                <select onchange="
+                    var audios = window.parent.document.getElementsByTagName('audio');
+                    if (audios.length > 0) {
+                        audios[audios.length - 1].playbackRate = parseFloat(this.value);
+                    }
+                " style="background-color: #0E1117; color: #00FF41; border: 1px solid #00FF41; padding: 6px; border-radius: 5px; cursor: pointer; width: 100px;">
+                    <option value="0.5">0.5x</option>
+                    <option value="0.75">0.75x</option>
+                    <option value="1.0" selected>1.0x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="2.0">2.0x</option>
+                </select>
+            </div>
+            """
+            components.html(html_code, height=55)
 
 col1, col2 = st.columns([1, 1])
 
 with col1:
     st.header("1. Live Query")
     recorded_audio = st.audio_input("Record your question live:")
+    
+    # Inject Custom X (Clear) Button inside the Mic Box without refreshing page
+    import streamlit.components.v1 as components
+    components.html("""
+    <script>
+        setInterval(function() {
+            var parent = window.parent.document;
+            var audioInputs = parent.querySelectorAll('[data-testid="stAudioInput"]');
+            
+            audioInputs.forEach(function(audioInput) {
+                if (!audioInput.querySelector('#custom-clear-mic')) {
+                    var x = parent.createElement('div');
+                    x.id = 'custom-clear-mic';
+                    x.innerHTML = '✖';
+                    x.style.position = 'absolute';
+                    x.style.right = '12px';
+                    x.style.bottom = '18px';
+                    x.style.cursor = 'pointer';
+                    x.style.fontSize = '13px';
+                    x.style.color = '#ff4b4b'; // Red color
+                    x.style.zIndex = '999';
+                    x.style.transition = 'transform 0.2s';
+                    x.title = "Clear Recording";
+                    
+                    x.onmouseover = function() { this.style.transform = 'scale(1.3)'; };
+                    x.onmouseout = function() { this.style.transform = 'scale(1)'; };
+                    
+                    audioInput.style.position = 'relative';
+                    audioInput.appendChild(x);
+                    
+                    // Shift the timer text left so they don't overlap
+                    var allElements = audioInput.querySelectorAll('*');
+                    allElements.forEach(function(el) {
+                        if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
+                            if (/^\d{1,2}:\d{2}$/.test(el.innerText.trim())) {
+                                el.style.transform = 'translateX(-15px)';
+                            }
+                        }
+                    });
+                    
+                    x.onclick = function(e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        var btns = audioInput.querySelectorAll('button');
+                        btns.forEach(function(btn) {
+                            var label = (btn.getAttribute('aria-label') || '').toLowerCase();
+                            if (label.includes('clear') || label.includes('delete') || label.includes('remove') || label.includes('reset')) {
+                                btn.click();
+                            }
+                        });
+                    };
+                }
+            });
+        }, 500);
+    </script>
+    """, height=0)
+
     uploaded_file = st.file_uploader("Or upload an audio file (.wav)", type=["wav"], key="single_upload")
     
     audio_source = recorded_audio if recorded_audio else uploaded_file
