@@ -14,10 +14,12 @@ st.set_page_config(page_title="RAG Voice Engine", page_icon="🎙️", layout="w
 
 st.markdown("""
     <!-- App-like Meta Tags -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#050805" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#FFF0F5" media="(prefers-color-scheme: light)">
 
     <style>
     /* Hide Streamlit Header/Footer for Native App Feel */
@@ -25,6 +27,22 @@ st.markdown("""
     header {visibility: hidden;}
     footer {visibility: hidden;}
     .stDeployButton {display: none;}
+    
+    /* Float theme toggle to the top right corner */
+    div[data-testid="stCheckbox"] {
+        position: fixed;
+        top: 25px;
+        right: 25px;
+        z-index: 999999;
+    }
+    @media (max-width: 768px) {
+        div[data-testid="stCheckbox"] {
+            top: 15px;
+            right: 15px;
+            transform: scale(0.9);
+        }
+    }
+    
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
     
     /* Base Font and Color */
@@ -181,13 +199,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-theme_col1, theme_col2 = st.columns([0.85, 0.15])
-with theme_col1:
-    st.title("🎙️ VOICE ENABLED RAG SYSTEM BY SADHNA")
-with theme_col2:
-    if 'is_light' not in st.session_state:
-        st.session_state.is_light = False
-    is_light_mode = st.toggle("🌙" if st.session_state.is_light else "☀️", key="is_light")
+if 'is_light' not in st.session_state:
+    st.session_state.is_light = False
+is_light_mode = st.toggle("🌙" if st.session_state.is_light else "☀️", key="is_light")
+
+st.markdown("<h1 style='text-align: center;'>🎙️ MULTILINGUAL VOICE ENABLED RAG SYSTEM BY</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; font-size: 4.5rem; margin-top: -15px; margin-bottom: 30px; letter-spacing: 5px;'>SADHNA</h1>", unsafe_allow_html=True)
 
 if is_light_mode:
     st.markdown("""
@@ -239,13 +256,18 @@ if is_light_mode:
         }
         
         /* Alerts & Info Boxes (AI Responses) matching Light Theme */
-        [data-testid="stAlert"] {
-            background-color: rgba(255, 255, 255, 0.3) !important;
-            border: 1px solid rgba(193, 53, 132, 0.6) !important;
+        div[data-testid="stAlert"] {
+            background-color: rgba(255, 255, 255, 0.4) !important;
+            border: 1px solid #C13584 !important;
             border-radius: 12px !important;
+        }
+        div[data-testid="stAlert"] div[data-testid="stMarkdownContainer"] p, div[data-testid="stAlert"] div { 
+            color: #C13584 !important; 
+        }
+        div[data-testid="stAlert"] svg { 
+            fill: #C13584 !important;
             color: #C13584 !important;
         }
-        [data-testid="stAlert"] * { color: #C13584 !important; }
         
         /* Soft Buttons */
         .stButton > button {
@@ -297,7 +319,7 @@ if is_light_mode:
         </style>
     """, unsafe_allow_html=True)
 
-st.markdown("### Powered by FAISS, Sarvam AI & Groq (Serverless Edition)")
+st.markdown("<h3 style='text-align: center;'>Powered by FAISS, Sarvam AI & Groq (Serverless Edition)</h3>", unsafe_allow_html=True)
 st.divider()
 
 @st.cache_resource(show_spinner=False)
@@ -367,11 +389,10 @@ def groq_llm(query, context):
     headers = {"Authorization": f"Bearer {api_key}"}
     
     lang_command = (
-        "Identify the language of the user's question. "
-        "If the question is in Hindi (whether written in Devanagari or Roman/English script like 'kya haal hai'), "
-        "you MUST reply entirely in pure Hindi using Devanagari script. "
+        "Identify the exact language of the user's question (e.g., Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, etc.). "
+        "You MUST reply entirely in that exact same language using its native script (e.g., Devanagari for Hindi, Bengali script for Bengali, etc.). "
         "If the question is in English, reply entirely in English. "
-        "Never translate a Hindi query to English."
+        "Never translate an Indian language query to English."
     )
         
     system_prompt = (
@@ -428,7 +449,16 @@ def process_query(audio_bytes):
 
 def generate_and_play_audio(text):
     if text and "Error" not in text:
-        detected_lang = 'hi' if re.search(r'[\u0900-\u097F]', text) else 'en'
+        if re.search(r'[\u0980-\u09FF]', text): detected_lang = 'bn' # Bengali
+        elif re.search(r'[\u0A00-\u0A7F]', text): detected_lang = 'pa' # Punjabi
+        elif re.search(r'[\u0A80-\u0AFF]', text): detected_lang = 'gu' # Gujarati
+        elif re.search(r'[\u0B80-\u0BFF]', text): detected_lang = 'ta' # Tamil
+        elif re.search(r'[\u0C00-\u0C7F]', text): detected_lang = 'te' # Telugu
+        elif re.search(r'[\u0C80-\u0CFF]', text): detected_lang = 'kn' # Kannada
+        elif re.search(r'[\u0D00-\u0D7F]', text): detected_lang = 'ml' # Malayalam
+        elif re.search(r'[\u0900-\u097F]', text): detected_lang = 'hi' # Hindi/Marathi
+        else: detected_lang = 'en'
+        
         tts = gTTS(text=text, lang=detected_lang)
         tts.save("temp_answer.mp3")
         
@@ -448,15 +478,19 @@ def generate_and_play_audio(text):
                 
         with c2:
             import streamlit.components.v1 as components
-            html_code = """
-            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Courier New', Courier, monospace; color: #00FF41; height: 100%; margin-top: 5px;">
+            is_light = st.session_state.get("is_light", False)
+            bg_col = "#FFF0F5" if is_light else "#0E1117"
+            txt_col = "#C13584" if is_light else "#00FF41"
+            
+            html_code = f"""
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Courier New', Courier, monospace; color: {txt_col}; height: 100%; margin-top: 5px;">
                 <label style="font-weight: bold; margin:0;">Voice Speed:</label>
                 <select onchange="
                     var audios = window.parent.document.getElementsByTagName('audio');
-                    if (audios.length > 0) {
+                    if (audios.length > 0) {{
                         audios[audios.length - 1].playbackRate = parseFloat(this.value);
-                    }
-                " style="background-color: #0E1117; color: #00FF41; border: 1px solid #00FF41; padding: 6px; border-radius: 5px; cursor: pointer; width: 100px;">
+                    }}
+                " style="background-color: {bg_col}; color: {txt_col}; border: 1px solid {txt_col}; padding: 6px; border-radius: 5px; cursor: pointer; width: 100px; font-weight: bold;">
                     <option value="0.5">0.5x</option>
                     <option value="0.75">0.75x</option>
                     <option value="1.0" selected>1.0x</option>
@@ -468,86 +502,88 @@ def generate_and_play_audio(text):
             """
             components.html(html_code, height=55)
 
+# Inject Custom X (Clear) Button globally without affecting column alignments
+import streamlit.components.v1 as components
+components.html("""
+<script>
+    setInterval(function() {
+        var parent = window.parent.document;
+        var audioInputs = parent.querySelectorAll('[data-testid="stAudioInput"]');
+        
+        audioInputs.forEach(function(audioInput) {
+            if (!audioInput.querySelector('#custom-clear-mic')) {
+                var x = parent.createElement('div');
+                x.id = 'custom-clear-mic';
+                x.innerHTML = '✖';
+                x.style.position = 'absolute';
+                x.style.right = '15px';
+                x.style.top = '50%';
+                x.style.transform = 'translateY(-50%)';
+                x.style.cursor = 'pointer';
+                x.style.fontSize = '13px';
+                x.style.color = '#ff4b4b'; // Red color
+                x.style.zIndex = '999';
+                x.style.transition = 'transform 0.2s';
+                x.title = "Clear Recording";
+                x.style.display = 'none'; // Hidden by default
+                
+                x.onmouseover = function() { this.style.transform = 'translateY(-50%) scale(1.3)'; };
+                x.onmouseout = function() { this.style.transform = 'translateY(-50%) scale(1)'; };
+                
+                // Attach to the actual record box (usually the second child after the label)
+                var recordArea = audioInput.children.length > 1 ? audioInput.children[1] : audioInput;
+                recordArea.style.position = 'relative';
+                recordArea.appendChild(x);
+                
+                x.onclick = function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    var btns = audioInput.querySelectorAll('button');
+                    btns.forEach(function(btn) {
+                        var label = (btn.getAttribute('aria-label') || '').toLowerCase();
+                        if (label.includes('clear') || label.includes('delete') || label.includes('remove') || label.includes('reset')) {
+                            btn.click();
+                        }
+                    });
+                };
+            }
+            
+            // Toggle visibility based on whether audio is recorded (i.e. native clear button exists)
+            var customX = audioInput.querySelector('#custom-clear-mic');
+            if (customX) {
+                var hasRecorded = false;
+                var btns = audioInput.querySelectorAll('button');
+                btns.forEach(function(btn) {
+                    var label = (btn.getAttribute('aria-label') || '').toLowerCase();
+                    if (label.includes('clear') || label.includes('delete') || label.includes('remove') || label.includes('reset')) {
+                        hasRecorded = true;
+                    }
+                });
+                customX.style.display = hasRecorded ? 'block' : 'none';
+            }
+            
+            // Shift the timer text left so they don't overlap
+            var allElements = audioInput.querySelectorAll('*');
+            allElements.forEach(function(el) {
+                if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
+                    if (/^\d{1,2}:\d{2}$/.test(el.innerText.trim())) {
+                        if (el.style.transform !== 'translateX(-15px)') {
+                            el.style.transform = 'translateX(-15px)';
+                        }
+                    }
+                }
+            });
+        });
+    }, 500);
+</script>
+""", height=0)
+
 col1, col2 = st.columns([1, 1])
 
 with col1:
     st.header("1. Live Query")
     recorded_audio = st.audio_input("Record your question live:")
-    
-    import streamlit.components.v1 as components
-    components.html("""
-    <script>
-        setInterval(function() {
-            var parent = window.parent.document;
-            var audioInputs = parent.querySelectorAll('[data-testid="stAudioInput"]');
-            
-            audioInputs.forEach(function(audioInput) {
-                if (!audioInput.querySelector('#custom-clear-mic')) {
-                    var x = parent.createElement('div');
-                    x.id = 'custom-clear-mic';
-                    x.innerHTML = '✖';
-                    x.style.position = 'absolute';
-                    x.style.right = '15px';
-                    x.style.top = '50%';
-                    x.style.transform = 'translateY(-50%)';
-                    x.style.cursor = 'pointer';
-                    x.style.fontSize = '13px';
-                    x.style.color = '#ff4b4b'; // Red color
-                    x.style.zIndex = '999';
-                    x.style.transition = 'transform 0.2s';
-                    x.title = "Clear Recording";
-                    x.style.display = 'none'; // Hidden by default
-                    
-                    x.onmouseover = function() { this.style.transform = 'translateY(-50%) scale(1.3)'; };
-                    x.onmouseout = function() { this.style.transform = 'translateY(-50%) scale(1)'; };
-                    
-                    // Attach to the actual record box (usually the second child after the label)
-                    var recordArea = audioInput.children.length > 1 ? audioInput.children[1] : audioInput;
-                    recordArea.style.position = 'relative';
-                    recordArea.appendChild(x);
-                    
-                    x.onclick = function(e) {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        var btns = audioInput.querySelectorAll('button');
-                        btns.forEach(function(btn) {
-                            var label = (btn.getAttribute('aria-label') || '').toLowerCase();
-                            if (label.includes('clear') || label.includes('delete') || label.includes('remove') || label.includes('reset')) {
-                                btn.click();
-                            }
-                        });
-                    };
-                }
-                
-                // Toggle visibility based on whether audio is recorded (i.e. native clear button exists)
-                var customX = audioInput.querySelector('#custom-clear-mic');
-                if (customX) {
-                    var hasRecorded = false;
-                    var btns = audioInput.querySelectorAll('button');
-                    btns.forEach(function(btn) {
-                        var label = (btn.getAttribute('aria-label') || '').toLowerCase();
-                        if (label.includes('clear') || label.includes('delete') || label.includes('remove') || label.includes('reset')) {
-                            hasRecorded = true;
-                        }
-                    });
-                    customX.style.display = hasRecorded ? 'block' : 'none';
-                }
-                
-                // Shift the timer text left so they don't overlap
-                var allElements = audioInput.querySelectorAll('*');
-                allElements.forEach(function(el) {
-                    if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
-                        if (/^\d{1,2}:\d{2}$/.test(el.innerText.trim())) {
-                            if (el.style.transform !== 'translateX(-15px)') {
-                                el.style.transform = 'translateX(-15px)';
-                            }
-                        }
-                    }
-                });
-            });
-        }, 500);
-    </script>
-    """, height=0)
+
 
     uploaded_file = st.file_uploader("Or upload an audio file (.wav)", type=["wav"], key="single_upload")
     if uploaded_file is not None:
@@ -576,20 +612,23 @@ with col1:
 
 with col2:
     st.header("2. Batch Latency Benchmark")
-    st.markdown("Upload multiple `.wav` files to calculate P-scores.")
-    batch_files = st.file_uploader("Upload Test Queries", type=["wav"], accept_multiple_files=True, key="batch_upload")
     
-    if st.button("📊 Run Analytics") and batch_files:
+    benchmark_mic = st.audio_input("Record directly for Benchmark:", key="benchmark_mic")
+    batch_files = st.file_uploader("Or Upload Test Queries", type=["wav"], accept_multiple_files=True, key="batch_upload")
+    
+    sources = batch_files if batch_files else ([benchmark_mic] if benchmark_mic else [])
+    
+    if st.button("📊 Run Analytics") and sources:
         latencies = []
         progress_bar = st.progress(0)
         
-        st.write("Executing Batch Sequence...")
-        for i, file in enumerate(batch_files):
+        st.write("Executing Benchmark Sequence...")
+        for i, file in enumerate(sources):
             audio_bytes = file.getvalue()
             _, _, lat = process_query(audio_bytes)
             latencies.append(lat)
             st.write(f"File {i+1} Processed Successfully.")
-            progress_bar.progress((i + 1) / len(batch_files))
+            progress_bar.progress((i + 1) / len(sources))
             
         if latencies:
             p50 = np.percentile(latencies, 50)
