@@ -642,7 +642,70 @@ with col2:
                 m1.metric("P50 Latency", f"{p50:.2f} ms")
                 m2.metric("P70 Latency", f"{p70:.2f} ms")
                 m3.metric("P100 Latency", f"{p100:.2f} ms")
-                st.balloons()
+                
+                is_light = st.session_state.get("is_light", False)
+                confetti_colors = "['#FF6B6B', '#833AB4', '#C13584', '#FECFEF']" if is_light else "['#00FF41', '#009922', '#ffffff']"
+                
+                import streamlit.components.v1 as components
+                components.html(f"""
+                <script>
+                    var parentDoc = window.parent.document;
+                    
+                    if (!parentDoc.getElementById('confetti-lib')) {{
+                        var script = parentDoc.createElement('script');
+                        script.id = 'confetti-lib';
+                        script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+                        parentDoc.head.appendChild(script);
+                    }}
+                    
+                    var execScript = parentDoc.createElement('script');
+                    execScript.innerHTML = `
+                        (function() {{
+                            var colors = {confetti_colors};
+                            var checkInterval = setInterval(function() {{
+                                if (window.confetti) {{
+                                    clearInterval(checkInterval);
+                                    var duration = 3000;
+                                    var end = Date.now() + duration;
+                                    (function frame() {{
+                                        window.confetti({{
+                                            particleCount: 8,
+                                            angle: 45,
+                                            spread: 60,
+                                            origin: {{ x: 0, y: 1 }},
+                                            startVelocity: 95,
+                                            gravity: 0.6,
+                                            ticks: 300,
+                                            colors: colors,
+                                            zIndex: 999999
+                                        }});
+                                        window.confetti({{
+                                            particleCount: 8,
+                                            angle: 135,
+                                            spread: 60,
+                                            origin: {{ x: 1, y: 1 }},
+                                            startVelocity: 95,
+                                            gravity: 0.6,
+                                            ticks: 300,
+                                            colors: colors,
+                                            zIndex: 999999
+                                        }});
+                                        if (Date.now() < end) {{
+                                            requestAnimationFrame(frame);
+                                        }}
+                                    }}());
+                                }}
+                            }}, 100);
+                            setTimeout(function() {{ clearInterval(checkInterval); }}, 5000);
+                        }})();
+                    `;
+                    parentDoc.body.appendChild(execScript);
+                    
+                    setTimeout(function() {{
+                        if (execScript.parentNode) execScript.parentNode.removeChild(execScript);
+                    }}, 6000);
+                </script>
+                """, height=0)
             else:
                 st.divider()
                 st.info("🔄 Click 'Run Analytics' again to reveal the Benchmarks.")
