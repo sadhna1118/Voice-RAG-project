@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+.env
+results/
+venv/
+scratch.py
+temp_answer.mp3
+rag-local-eval-loop/

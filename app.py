@@ -389,17 +389,21 @@ def groq_llm(query, context):
     headers = {"Authorization": f"Bearer {api_key}"}
     
     lang_command = (
-        "Identify the exact language of the user's question (e.g., Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, etc.). "
-        "You MUST reply entirely in that exact same language using its native script (e.g., Devanagari for Hindi, Bengali script for Bengali, etc.). "
-        "If the question is in English, reply entirely in English. "
-        "Never translate an Indian language query to English."
+        "CRITICAL: Auto-detect the underlying spoken language of the user's question. "
+        "Even if the question is typed in Roman/English letters (e.g., 'Bharat ki rajdhani' -> Hindi), detect the actual language. "
+        "You MUST translate the retrieved context and reply ENTIRELY in the NATIVE SCRIPT of the user's detected language "
+        "(e.g., Devanagari for Hindi, Bengali script for Bengali, etc.). "
+        "If the user asks purely in English, reply in English."
     )
         
     system_prompt = (
-        "You are an expert summarizer. Analyze the context and answer the question accurately.\n"
-        f"CRITICAL RULE 1 (LANGUAGE): {lang_command}\n"
-        "CRITICAL RULE 2 (LENGTH): Keep the answer strictly between 3 to 4 short sentences. DO NOT exceed this length.\n"
-        "CRITICAL RULE 3 (COMPLETION): Always end with a complete sentence and a proper full stop. Never leave the output cut off."
+        "You are an answering assistant. Answer the user's question using ONLY the provided context.\n"
+        f"CRITICAL RULE 1 (LANGUAGE & TRANSLATION): {lang_command}\n"
+        "CRITICAL RULE 2 (REFUSAL): If the provided context does not contain enough information to answer the question, you must reply with exactly 'No answer' and nothing else.\n"
+        "CRITICAL RULE 3 (CONCISENESS): If you do answer, keep it strictly to 1 or 2 short sentences.\n"
+        "CRITICAL RULE 4 (NO THINKING): DO NOT output any <think> tags or reasoning. Just output the final answer directly.\n\n"
+        "Example 1:\nContext: The sky is blue due to Rayleigh scattering.\nQuestion: Aakash neela kyu hota hai?\nAnswer: आकाश रेले प्रकीर्णन (Rayleigh scattering) के कारण नीला होता है।\n\n"
+        "Example 2:\nContext: The sky is blue.\nQuestion: Why is grass green?\nAnswer: No answer"
     )
     
     user_content = f"Context: {context}\n\nQuestion: {query}"
@@ -418,7 +422,10 @@ def groq_llm(query, context):
         res = requests.post(url, headers=headers, json=payload, timeout=10.0)
         
         if res.status_code == 200:
-            return res.json()["choices"][0]["message"]["content"]
+            answer_text = res.json()["choices"][0]["message"]["content"]
+            # Strip <think> tags from models like Qwen (even if cut off)
+            answer_text = re.sub(r'<think>.*?(</think>|$)', '', answer_text, flags=re.DOTALL).strip()
+            return answer_text
         else:
             return f"❌ API Error {res.status_code}: {res.text}"
             
